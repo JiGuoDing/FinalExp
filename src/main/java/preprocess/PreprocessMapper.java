@@ -43,8 +43,12 @@ public class PreprocessMapper extends Mapper<LongWritable, Text, Text, NullWrita
         String work_id = fields[3];
         String authors = "\"" + fields[7] + "\"";
         String original_publication_year = fields[8];
-        // 将具体年转换为年代
-        String decade = original_publication_year.replaceAll("(\\d{3})\\d.*", "$10s");
+        String decade;
+        // 如果年份为空，则将其指定为 1900s
+        if (original_publication_year.isEmpty())
+            // 将具体年份转换为年代
+            decade = "1900s";
+        else decade = original_publication_year.replaceAll("(\\d{3})\\d.*", "$10s");
         String title = fields[10];
 
         StringJoiner joiner = new StringJoiner(",");

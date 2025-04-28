@@ -1,32 +1,108 @@
 package preprocess;
 
 
+import com.opencsv.CSVParser;
+import com.opencsv.CSVParserBuilder;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class TagsFlattenMapper extends Mapper<Text, Text, Text, Text> {
 
+    private static final Logger logger = LoggerFactory.getLogger(TagsFlattenMapper.class);
+    // 记录格式：goodreads_book_id: (tag_id, count)
+    Map<String, Book> booksMap = new HashMap<>();
+
     @Override
     protected void setup(Mapper<Text, Text, Text, Text>.Context context) throws IOException {
-        // 读取 book_tags.csv 文件（格式：goodreads_book_id, tag_id, count）
-        URI[] files = context.getCacheFiles();
-        BufferedReader bufferedReader = new BufferedReader(new FileReader("bookTags"));
-        String line;
-        while ((line = bufferedReader.readLine()) != null){
-            String[] fields = line.split(",");
-            String goodreads_book_id = fields[0];
-            String tag_id =  fields[1];
-            String count = fields[2];
+        CSVParser csvParser = new CSVParserBuilder().withSeparator(',').withQuoteChar('"').build();
+        // 读取 books_simplified 文件（格式：book_id, goodreads_book_id, best_book_id, work_id, authors, original_publication_decade, title）
+        URI[] cacheFiles = context.getCacheFiles();
+        Configuration conf = context.getConfiguration();
+        FileSystem fs = FileSystem.get(conf);
+
+        for (URI cacheFile : cacheFiles) {
+            File books = new File(cacheFile);
+            try(FSDataInputStream inputStream = fs.open(new Path(cacheFile));
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));) {
+                String line;
+                while ((line = bufferedReader.readLine()) != null){
+                    String[] fields = csvParser.parseLine(line);
+                    String book_id = fields[0];
+                    String goodreads_book_id = fields[1].trim();
+                    String best_book_id = fields[2].trim();
+                    String work_id = fields[3].trim();
+                    String authors = fields[4].trim();
+                    String original_publication_decade = fields[5].trim();
+                    String title = fields[6].trim();
+
+                    // 保存记录到哈希表
+                    booksMap.putIfAbsent(goodreads_book_id, new Book(book_id, goodreads_book_id, best_book_id, work_id, authors, original_publication_decade, title));
+                }
+            }catch (Exception e){
+                logger.error("Error reading book tags", e);
+                e.printStackTrace();
+            }
         }
     }
 
     @Override
-    protected void map(Text key, Text value, Mapper<Text, Text, Text, Text>.Context context) {
+    protected void map(Text key, Text value, Mapper<Text, Text, Text, Text>.Context context) throws IOException, InterruptedException {
+        /*
+        输入：book_tags.csv 的一行记录（格式：goodreads_book_id, tag_id, count）
+         */
+        // 跳过 csv 标题行
+        if (value.toString().startsWith("goodreads_book_id"))
+            return;
 
+        String line = value.toString();
+        String[] fields = line.split(",");
+        String goodreads_book_id = fields[0].trim();
+        String tag_id = fields[1].trim();
+        String count = fields[2].trim();
+
+        Book book = booksMap.get(goodreads_book_id);
+        String book_id = book.book_id;
+        String tag_flattened = tag_id + ", " + count;
+
+        /*
+        输出格式：
+        K：book_id
+        V：tag_id, count
+         */
+        context.write(new Text(book_id), new Text(tag_flattened));
+    }
+
+    // 保存 book 信息的辅助内部类
+    static class Book{
+        String book_id;
+        String goodreads_book_id;
+        String best_book_id;
+        String work_id;
+        String authors;
+        String original_publication_decade;
+        String title;
+
+        public Book(String book_id, String goodreads_book_id, String best_book_id, String work_id, String authors, String original_publication_decade, String title) {
+            this.book_id = book_id;
+            this.goodreads_book_id = goodreads_book_id;
+            this.best_book_id = best_book_id;
+            this.work_id = work_id;
+            this.authors = authors;
+            this.original_publication_decade = original_publication_decade;
+            this.title = title;
+        }
     }
 }
