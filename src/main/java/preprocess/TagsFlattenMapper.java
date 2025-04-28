@@ -7,26 +7,27 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.jline.utils.InputStreamReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-public class TagsFlattenMapper extends Mapper<Text, Text, Text, Text> {
+public class TagsFlattenMapper extends Mapper<LongWritable, Text, Text, Text> {
 
     private static final Logger logger = LoggerFactory.getLogger(TagsFlattenMapper.class);
     // 记录格式：goodreads_book_id: (tag_id, count)
     Map<String, Book> booksMap = new HashMap<>();
 
     @Override
-    protected void setup(Mapper<Text, Text, Text, Text>.Context context) throws IOException {
+    protected void setup(Mapper<LongWritable, Text, Text, Text>.Context context) throws IOException {
         CSVParser csvParser = new CSVParserBuilder().withSeparator(',').withQuoteChar('"').build();
         // 读取 books_simplified 文件（格式：book_id, goodreads_book_id, best_book_id, work_id, authors, original_publication_decade, title）
         URI[] cacheFiles = context.getCacheFiles();
@@ -34,9 +35,8 @@ public class TagsFlattenMapper extends Mapper<Text, Text, Text, Text> {
         FileSystem fs = FileSystem.get(conf);
 
         for (URI cacheFile : cacheFiles) {
-            File books = new File(cacheFile);
             try(FSDataInputStream inputStream = fs.open(new Path(cacheFile));
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));) {
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream))) {
                 String line;
                 while ((line = bufferedReader.readLine()) != null){
                     String[] fields = csvParser.parseLine(line);
@@ -59,7 +59,7 @@ public class TagsFlattenMapper extends Mapper<Text, Text, Text, Text> {
     }
 
     @Override
-    protected void map(Text key, Text value, Mapper<Text, Text, Text, Text>.Context context) throws IOException, InterruptedException {
+    protected void map(LongWritable key, Text value, Mapper<LongWritable, Text, Text, Text>.Context context) throws IOException, InterruptedException {
         /*
         输入：book_tags.csv 的一行记录（格式：goodreads_book_id, tag_id, count）
          */
