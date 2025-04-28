@@ -23,6 +23,7 @@ public class TagsFlattenReducer extends Reducer<Text, Text, Text, Text> {
             String count = tagCount[1];
             tagsCounts.add(tag_id + ":" + count);
         }
+
         /*
         输出格式：
         K：book_id
