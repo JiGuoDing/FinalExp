@@ -13,6 +13,7 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.jline.utils.InputStreamReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import utils.Book;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -74,7 +75,7 @@ public class TagsFlattenMapper extends Mapper<LongWritable, Text, Text, Text> {
         String count = fields[2].trim();
 
         Book book = booksMap.get(goodreads_book_id);
-        String book_id = book.book_id;
+        String book_id = book.getBook_id();
         String tag_flattened = tag_id + ", " + count;
 
         /*
@@ -83,26 +84,5 @@ public class TagsFlattenMapper extends Mapper<LongWritable, Text, Text, Text> {
         V：tag_id, count
          */
         context.write(new Text(book_id), new Text(tag_flattened));
-    }
-
-    // 保存 book 信息的辅助内部类
-    static class Book{
-        String book_id;
-        String goodreads_book_id;
-        String best_book_id;
-        String work_id;
-        String authors;
-        String original_publication_decade;
-        String title;
-
-        public Book(String book_id, String goodreads_book_id, String best_book_id, String work_id, String authors, String original_publication_decade, String title) {
-            this.book_id = book_id;
-            this.goodreads_book_id = goodreads_book_id;
-            this.best_book_id = best_book_id;
-            this.work_id = work_id;
-            this.authors = authors;
-            this.original_publication_decade = original_publication_decade;
-            this.title = title;
-        }
     }
 }
