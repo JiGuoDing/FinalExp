@@ -19,6 +19,10 @@ public class UserBooksReducer extends Reducer<Text, Text, Text, Text> {
         for (Text value : values) {
             list_book_id.add(value.toString());
         }
+        /*
+        将图书序号按升序排列
+         */
+
         String book_ids =  String.join(",", list_book_id);
 
         /*
