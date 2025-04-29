@@ -5,6 +5,7 @@ import org.apache.hadoop.mapreduce.Reducer;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public class UserBooksReducer extends Reducer<Text, Text, Text, Text> {
@@ -21,10 +22,11 @@ public class UserBooksReducer extends Reducer<Text, Text, Text, Text> {
         }
         /*
         将图书序号按升序排列
+        Integer::parseInt 是方法引用，等价于 s -> Integer.parseInt(s)
          */
+        list_book_id.sort(Comparator.comparingInt(Integer::parseInt));
 
         String book_ids =  String.join(",", list_book_id);
-
         /*
         输出格式：
         K：user_id
