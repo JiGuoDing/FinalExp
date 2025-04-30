@@ -9,7 +9,6 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 
 public class BooksSimilarityDriver {
@@ -24,13 +23,13 @@ public class BooksSimilarityDriver {
         /*
         添加图书信息文件到缓存中
          */
-        job.addCacheFile(new URI("hdfs:///simplified_books/part-r-00000"));
-        job.addCacheFile(new URI("hdfs:///simplified_books/part-r-00001"));
+        job.addCacheFile(new Path("hdfs:///simplified_books/part-r-00000").toUri());
+        job.addCacheFile(new Path("hdfs:///simplified_books/part-r-00001").toUri());
         /*
         添加图书标签信息文件到缓存中
          */
-        job.addCacheFile(new URI("hdfs:///book_tags_flattened/part-r-00000"));
-        job.addCacheFile(new URI("hdfs:///book_tags_flattened/part-r-00001"));
+        job.addCacheFile(new Path("hdfs:///book_tags_flattened/part-r-00000").toUri());
+        job.addCacheFile(new Path("hdfs:///book_tags_flattened/part-r-00001").toUri());
         job.setNumReduceTasks(3);
 
         job.setJarByClass(BooksSimilarityDriver.class);

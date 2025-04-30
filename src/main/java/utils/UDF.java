@@ -1,5 +1,8 @@
 package utils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -7,6 +10,7 @@ import java.util.stream.Collectors;
 The UDF Class includes some functions that defined by JGD.
  */
 public class UDF {
+    private static final Logger logger = LoggerFactory.getLogger(UDF.class);
     /*
     计算两个集合的 Jaccard 系数
      */
@@ -85,8 +89,8 @@ public class UDF {
          */
         String decade1 = book1.getOriginal_publication_decade();
         String decade2 = book2.getOriginal_publication_decade();
-        int intDecade1 = Integer.parseInt(decade1);
-        int intDecade2 = Integer.parseInt(decade2);
+        int intDecade1 = DecadeConverter.toInt(decade1);
+        int intDecade2 = DecadeConverter.toInt(decade2);
 
         double decadeSimilarity = 1.0 - (double) (Math.abs(intDecade1 - intDecade2)) / maxYearGap;
 

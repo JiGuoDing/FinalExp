@@ -75,4 +75,17 @@ public class Book{
         this.original_publication_decade = original_publication_decade;
         this.title = title;
     }
+
+    @Override
+    public String toString() {
+        return "Book{" +
+                "book_id='" + book_id + '\'' +
+                ", goodreads_book_id='" + goodreads_book_id + '\'' +
+                ", best_book_id='" + best_book_id + '\'' +
+                ", work_id='" + work_id + '\'' +
+                ", authors='" + authors + '\'' +
+                ", original_publication_decade='" + original_publication_decade + '\'' +
+                ", title='" + title + '\'' +
+                '}';
+    }
 }
