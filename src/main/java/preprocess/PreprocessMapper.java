@@ -8,6 +8,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import utils.DecadeConverter;
 
 import java.io.IOException;
 import java.util.StringJoiner;
@@ -46,10 +47,10 @@ public class PreprocessMapper extends Mapper<LongWritable, Text, Text, NullWrita
         String decade;
         // 如果年份为空，则将其指定为 1900s
         if (original_publication_year.isEmpty())
-            // 将具体年份转换为年代
+            // 将具体年份转换为十年制的年代
             decade = "1900s";
-        else decade = original_publication_year.replaceAll("(\\d{3})\\d.*", "$10s");
-        String title = fields[10];
+        else decade = DecadeConverter.toDecade(original_publication_year);
+        String title = "\"" + fields[10] + "\"";
 
         StringJoiner joiner = new StringJoiner(",");
         joiner.add(book_id);

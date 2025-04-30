@@ -2,6 +2,7 @@ package bookSimilarity;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
@@ -14,6 +15,11 @@ import java.net.URISyntaxException;
 public class BooksSimilarityDriver {
     public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException, URISyntaxException {
         Configuration conf = new Configuration();
+        /*
+        设置缓存值
+         */
+        conf.setInt("MAX_YEAR_GAP", 3760);
+        conf.setInt("USER_NUM", 949895);
         Job job = Job.getInstance(conf, "BooksSimilarityDriver");
         /*
         添加图书信息文件到缓存中
@@ -32,9 +38,9 @@ public class BooksSimilarityDriver {
         job.setReducerClass(BooksSimilarityReducer.class);
 
         job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(Text.class);
+        job.setMapOutputValueClass(DoubleWritable.class);
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(Text.class);
+        job.setOutputValueClass(DoubleWritable.class);
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
 

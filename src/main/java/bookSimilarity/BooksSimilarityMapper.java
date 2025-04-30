@@ -2,18 +2,22 @@ package bookSimilarity;
 
 import com.opencsv.CSVParser;
 import com.opencsv.CSVParserBuilder;
+import com.sun.scenario.effect.impl.sw.java.JSWInvertMaskPeer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.zookeeper.Testable;
 import org.jline.utils.InputStreamReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import utils.Book;
 import utils.TagCnt;
+import utils.UDF;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -21,7 +25,7 @@ import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class BooksSimilarityMapper extends Mapper<LongWritable, Text, Text, Text> {
+public class BooksSimilarityMapper extends Mapper<LongWritable, Text, Text, DoubleWritable> {
 
     private static final Logger logger = LoggerFactory.getLogger(BooksSimilarityMapper.class);
     /*
@@ -32,15 +36,25 @@ public class BooksSimilarityMapper extends Mapper<LongWritable, Text, Text, Text
     保存结构：book_id: List[(tag, cnt)...]
      */
     Map<String, List<TagCnt>> tagsMap = new HashMap<>();
+    /*
+    最大年份差值
+     */
+    int max_year_gap;
+    /*
+    用户总数
+     */
+    int user_num;
 
     @Override
-    protected void setup(Mapper<LongWritable, Text, Text, Text>.Context context) throws IOException, InterruptedException {
+    protected void setup(Mapper<LongWritable, Text, Text, DoubleWritable>.Context context) throws IOException, InterruptedException {
         /*
         读取缓存中的图书信息文件和图书标签信息文件
          */
         CSVParser csvParser = new CSVParserBuilder().withSeparator(',').withQuoteChar('"').build();
         URI[] cacheFiles = context.getCacheFiles();
         Configuration conf = context.getConfiguration();
+        max_year_gap = conf.getInt("MAX_YEAR_GAP", 3760);
+        user_num = conf.getInt("USER_NUM", 949895);
         FileSystem fs = FileSystem.get(conf);
 
         for (URI cacheFile : cacheFiles) {
@@ -93,16 +107,20 @@ public class BooksSimilarityMapper extends Mapper<LongWritable, Text, Text, Text
     }
 
     @Override
-    protected void map(LongWritable key, Text value, Mapper<LongWritable, Text, Text, Text>.Context context) throws IOException, InterruptedException {
+    protected void map(LongWritable key, Text value, Mapper<LongWritable, Text, Text, DoubleWritable>.Context context) throws IOException, InterruptedException {
         /*
         输入结构：
-        K：book_id1, book_id2
-        V：cooccurrence
+        K：偏移量
+        V：book_id1, book_id2    cooccurrence
          */
-        String[] book_ids = key.toString().split(",");
-        String book_id1 = book_ids[0].trim();
-        String book_id2 = book_ids[1].trim();
-        int cooccurrence = Integer.parseInt(value.toString());
+        String[] book_ids_cooccurrence = value.toString().split("\t");
+        // book_ids：book_id1, book_id2
+        String book_ids = book_ids_cooccurrence[0];
+        // ary_book_ids：[book_id1, book_id2]
+        String[] ary_book_ids = book_ids.split(",");
+        String book_id1 = ary_book_ids[0].trim();
+        String book_id2 = ary_book_ids[1].trim();
+        int cooccurrence = Integer.parseInt(book_ids_cooccurrence[1]);
 
         /*
         获取两本图书的信息
@@ -111,22 +129,21 @@ public class BooksSimilarityMapper extends Mapper<LongWritable, Text, Text, Text
         Book book2 = booksMap.get(book_id2);
 
         /*
-        获取两本图书的标签信息
+        获取两本图书的标签列表
          */
         List<TagCnt> list_tagCnt1 = tagsMap.get(book_id1);
         List<TagCnt> list_tagCnt2 = tagsMap.get(book_id2);
 
         /*
-        TODO 获取两本图书的作者信息
+        计算该图书对的相似度
          */
+        double similarity = UDF.calSimilarityOf2Book(book1, book2, list_tagCnt1, list_tagCnt2, cooccurrence, max_year_gap, user_num);
 
         /*
-        TODO 获取两本图书的年代信息
+        输出结构：
+        K：book_id1, book_id2
+        V：similarity
          */
-
-        /*
-        TODO 计算两本图书的相似度
-         */
-
+        context.write(new Text(book_ids), new DoubleWritable(similarity));
     }
 }
