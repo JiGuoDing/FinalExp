@@ -24,7 +24,7 @@ import java.util.Map;
 public class TagsFlattenMapper extends Mapper<LongWritable, Text, Text, Text> {
 
     private static final Logger logger = LoggerFactory.getLogger(TagsFlattenMapper.class);
-    // 记录格式：goodreads_book_id: (tag_id, count)
+    // 保存结构：book_id: Book(book_id, goodreads_book_id, best_book_id,...)
     Map<String, Book> booksMap = new HashMap<>();
 
     @Override

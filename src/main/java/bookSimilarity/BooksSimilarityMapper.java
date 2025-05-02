@@ -42,65 +42,74 @@ public class BooksSimilarityMapper extends Mapper<LongWritable, Text, Text, Doub
     用户总数
      */
     int user_num;
+    /*
+    调试字段
+     */
+    String debugStr = "";
 
-    @Override
-    protected void setup(Mapper<LongWritable, Text, Text, DoubleWritable>.Context context) throws IOException, InterruptedException {
-        /*
-        读取缓存中的图书信息文件和图书标签信息文件
-         */
-        CSVParser csvParser = new CSVParserBuilder().withSeparator(',').withQuoteChar('"').build();
-        URI[] cacheFiles = context.getCacheFiles();
-        Configuration conf = context.getConfiguration();
-        max_year_gap = conf.getInt("MAX_YEAR_GAP", 3760);
-        user_num = conf.getInt("USER_NUM", 949895);
-        FileSystem fs = FileSystem.get(conf);
+        @Override
+        protected void setup(Mapper<LongWritable, Text, Text, DoubleWritable>.Context context) throws IOException, InterruptedException {
+            /*
+            读取缓存中的图书信息文件和图书标签信息文件
+             */
+            CSVParser csvParser = new CSVParserBuilder().withSeparator(',').withQuoteChar('"').build();
+            URI[] cacheFiles = context.getCacheFiles();
+            Configuration conf = context.getConfiguration();
+            max_year_gap = conf.getInt("MAX_YEAR_GAP", 3760);
+            user_num = conf.getInt("USER_NUM", 949895);
+            FileSystem fs = FileSystem.get(conf);
 
-        for (URI cacheFile : cacheFiles) {
-            String filePath = cacheFile.getPath();
-            try(FSDataInputStream inputStream = fs.open(new Path(cacheFile));
-                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream))) {
-                String line;
-                if (filePath.contains("simplified_books")){
-                    /*
-                    读取 books_simplified 文件（格式：book_id, goodreads_book_id, best_book_id, work_id, authors, original_publication_decade, title）
-                     */
-                    while ((line = bufferedReader.readLine()) != null){
-                        String[] fields = csvParser.parseLine(line);
-                        String book_id = fields[0];
-                        String goodreads_book_id = fields[1].trim();
-                        String best_book_id = fields[2].trim();
-                        String work_id = fields[3].trim();
-                        String authors = fields[4].trim();
-                        String original_publication_decade = fields[5].trim();
-                        String title = fields[6].trim();
+            for (URI cacheFile : cacheFiles) {
+                String alias = cacheFile.getFragment(); // 获取 URI 的 fragment（也就是指定的别名）
+                if (alias == null) continue; // 如果没有别名就跳过（理论上不会发生）
 
-                        // 保存记录到哈希表
-                        booksMap.putIfAbsent(book_id, new Book(book_id, goodreads_book_id, best_book_id, work_id, authors, original_publication_decade, title));
+                try (FSDataInputStream inputStream = fs.open(new Path(cacheFile));
+                     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream))) {
+
+                    String line;
+                    if (alias.startsWith("simplified_books_")) {
+                        // 读取图书信息
+                        while ((line = bufferedReader.readLine()) != null) {
+                            String[] fields = csvParser.parseLine(line);
+                            String book_id = fields[0];
+                            String goodreads_book_id = fields[1].trim();
+                            String best_book_id = fields[2].trim();
+                            String work_id = fields[3].trim();
+                            String authors = fields[4].trim();
+                            String original_publication_decade = fields[5].trim();
+                            String title = fields[6].trim();
+
+                            booksMap.putIfAbsent(book_id, new Book(book_id, goodreads_book_id, best_book_id, work_id, authors, original_publication_decade, title));
+                        }
+                    } else if (alias.startsWith("book_tags_")) {
+                        // 读取图书标签信息
+                        while ((line = bufferedReader.readLine()) != null) {
+                            String[] fields = line.split("\t");
+                            String book_id = fields[0];
+                            String tags_cnts = fields[1];
+
+                            /*
+                            踩坑记录：Integer.parseInt(str)中的 str 前后必须严格没有空格，务必先用 trim() 进行预处理
+                             */
+                            List<TagCnt> list_tags_cnts = Arrays.stream(tags_cnts.split(","))
+                                    .map(String::trim)
+                                    .map(tag_cnt -> {
+                                        String[] split = tag_cnt.split(":");
+                                        String tag_id = split[0].trim();
+                                        int cnt = Integer.parseInt(split[1].trim());
+                                        return new TagCnt(tag_id, cnt);
+                                    })
+                                    .collect(Collectors.toList());
+                            tagsMap.put(book_id, list_tags_cnts);
+                        }
                     }
-                } else {
-                    /*
-                    读取 book_tags_flattened 文件（格式：book_id    tag_id1:cnt1, tag_id2:cnt2, tag_id3:cnt3,...）
-                     */
-                    while ((line = bufferedReader.readLine()) != null){
-                        String[] fields = line.split("\t");
-                        String book_id = fields[0];
-                        String tags_cnts = fields[1];
-                        List<TagCnt> list_tags_cnts = Arrays.stream(tags_cnts.split(",")).map(String::trim).map(tag_cnt -> {
-                            String[] split = tag_cnt.split(":");
-                            String tag_id = split[0];
-                            int cnt =  Integer.parseInt(split[1]);
-                            return new TagCnt(tag_id, cnt);
-                        }).collect(Collectors.toList());
-
-                        tagsMap.putIfAbsent(book_id, list_tags_cnts);
-                    }
+                } catch (Exception e) {
+                    logger.error("Error reading cached file: " + alias, e);
+                    e.printStackTrace();
                 }
-            }catch (Exception e){
-                logger.error("Error reading book tags", e);
-                e.printStackTrace();
             }
+            // debugStr = "@" + tagsMap.size() + "@";
         }
-    }
 
     @Override
     protected void map(LongWritable key, Text value, Mapper<LongWritable, Text, Text, DoubleWritable>.Context context) throws IOException, InterruptedException {

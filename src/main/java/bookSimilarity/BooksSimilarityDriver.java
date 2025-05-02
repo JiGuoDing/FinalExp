@@ -9,6 +9,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 
 public class BooksSimilarityDriver {
@@ -22,14 +23,15 @@ public class BooksSimilarityDriver {
         Job job = Job.getInstance(conf, "BooksSimilarityDriver");
         /*
         添加图书信息文件到缓存中
+        务必添加别名，不然 part-r-00000 这样的文件名会出现重名问题，导致文件被覆盖。
          */
-        job.addCacheFile(new Path("hdfs:///simplified_books/part-r-00000").toUri());
-        job.addCacheFile(new Path("hdfs:///simplified_books/part-r-00001").toUri());
+        job.addCacheFile(new URI("hdfs:///simplified_books/part-r-00000#simplified_books_00000"));
+        job.addCacheFile(new URI("hdfs:///simplified_books/part-r-00001#simplified_books_00001"));
         /*
         添加图书标签信息文件到缓存中
          */
-        job.addCacheFile(new Path("hdfs:///book_tags_flattened/part-r-00000").toUri());
-        job.addCacheFile(new Path("hdfs:///book_tags_flattened/part-r-00001").toUri());
+        job.addCacheFile(new URI("hdfs:///book_tags_flattened/part-r-00000#book_tags_00000"));
+        job.addCacheFile(new URI("hdfs:///book_tags_flattened/part-r-00001#book_tags_00001"));
         job.setNumReduceTasks(3);
 
         job.setJarByClass(BooksSimilarityDriver.class);
